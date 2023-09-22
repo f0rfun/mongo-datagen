@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"sort"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -110,6 +112,27 @@ func main() {
 	}
 
 	fmt.Println("Data inserted successfully.")
+	fmt.Println("=========== query specific data =====================")
+	filter := bson.M{"circuitid": bson.M{"$eq": 23}, "status": bson.M{"$eq": "active"}}
+
+	var cableResult Cables
+	// Decode unmarshals BSON back into a user-defined struct
+	err = cableCollection.FindOne(context.TODO(), filter).Decode(&cableResult)
+	if err != nil {
+		log.Fatalf("filter query data error : %v", err)
+		return
+	}
+
+	sort.SliceStable(cableResult.OilPressureSensors, func(i, j int) bool {
+		return cableResult.OilPressureSensors[i].Section < cableResult.OilPressureSensors[j].Section
+	})
+
+	fmt.Println("CircuitID: ", cableResult.CircuitID)
+	fmt.Println("Status: ", cableResult.Status)
+	for i := range cableResult.OilPressureSensors {
+		p := cableResult.OilPressureSensors[i]
+		fmt.Println("Section: ", p.Section)
+	}
 }
 
 func randomString(length int) string {

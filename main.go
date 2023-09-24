@@ -14,11 +14,19 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
+type Section struct {
+	SensorID      int64
+	SectionNumber uint8
+	RedSource     float64
+	RedTarget     float64
+	YellowSource  float64
+	YellowTarget  float64
+	BlueSource    float64
+	BlueTarget    float64
+}
+
 type OilPressureSensors struct {
-	SensorID int64
-	Section  uint8
-	Phase    string
-	Endpoint string
+	Section Section
 }
 
 type Cables struct {
@@ -65,8 +73,6 @@ func main() {
 	cableCollection := database.Collection("cables")
 	cableCollection.Drop(ctx)
 
-	phases := []string{"red", "yellow", "blue"}
-	endpoints := []string{"source", "destination"}
 	status := []string{"active", "inactive"}
 
 	// cablePressureCollection := database.Collection("cablePressure")
@@ -79,14 +85,20 @@ func main() {
 		// section * number of phases
 		// e.g. 8 * 2 * 3 = 48
 		for j := 1; j <= 48; j++ {
-			randomPhaseIndex := rand.Intn(len(phases))
-			randomEndpointIndex := rand.Intn(len(endpoints))
-
 			sensor := OilPressureSensors{
-				SensorID: rand.Int63n(48),
-				Section:  uint8(rand.Intn(8)),
-				Phase:    phases[randomPhaseIndex],
-				Endpoint: endpoints[randomEndpointIndex],
+				Section: Section{
+					SensorID:      rand.Int63n(48),
+					SectionNumber: uint8(rand.Intn(8)),
+					// RedSource:     float64(rand.Int63n(30)),
+					// RedTarget:     float64(rand.Int63n(30)),
+					// YellowSource:  float64(rand.Int63n(30)),
+					// YellowTarget:  float64(rand.Int63n(30)),
+					// BlueSource:    float64(rand.Int63n(30)),
+					// BlueTarget:    float64(rand.Int63n(30)),
+				},
+				// Section:  uint8(rand.Intn(8)),
+				// Phase:    phases[randomPhaseIndex],
+				// Endpoint: endpoints[randomEndpointIndex],
 			}
 			oilPressureSensors = append(oilPressureSensors, sensor)
 		}
@@ -124,7 +136,7 @@ func main() {
 	}
 
 	sort.SliceStable(cableResult.OilPressureSensors, func(i, j int) bool {
-		return cableResult.OilPressureSensors[i].Section < cableResult.OilPressureSensors[j].Section
+		return cableResult.OilPressureSensors[i].Section.SectionNumber < cableResult.OilPressureSensors[j].Section.SectionNumber
 	})
 
 	fmt.Println("CircuitID: ", cableResult.CircuitID)
@@ -132,6 +144,8 @@ func main() {
 	for i := range cableResult.OilPressureSensors {
 		p := cableResult.OilPressureSensors[i]
 		fmt.Println("Section: ", p.Section)
+		fmt.Println("SensorID: ", p.Section.SensorID)
+
 	}
 }
 

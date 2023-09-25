@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"sort"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -14,34 +13,37 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type Section struct {
-	SensorID      int64
-	SectionNumber uint8
-	RedSource     float64
-	RedTarget     float64
-	YellowSource  float64
-	YellowTarget  float64
-	BlueSource    float64
-	BlueTarget    float64
+type Sensor struct {
+	SensorID int64
+	Value    float64
 }
 
-type OilPressureSensors struct {
-	Section Section
+type Section struct {
+	SectionNumber int
+	RedSource     Sensor
+	RedTarget     Sensor
+	YellowSource  Sensor
+	YellowTarget  Sensor
+	BlueSource    Sensor
+	BlueTarget    Sensor
 }
 
 type Cables struct {
-	CircuitID          uint8
-	CircuitName        string
-	CircuitVoltage     string
-	Status             string
-	SourceSubstation   string
-	TargetSubstation   string
-	CircuitType        string
-	FeederNumber       uint8
-	OilPressureSensors []OilPressureSensors
+	CircuitID        int
+	CircuitName      string
+	CircuitVoltage   string
+	Status           string
+	SourceSubstation string
+	TargetSubstation string
+	CircuitType      string
+	FeederNumber     int
+	NoOfSections     int
+	Sections         []Section
 }
 
 func main() {
+	TOTAL_CIRCUITS := 65
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
 	mongoClient, err := mongo.Connect(
@@ -75,46 +77,51 @@ func main() {
 
 	status := []string{"active", "inactive"}
 
-	// cablePressureCollection := database.Collection("cablePressure")
-	// cablePressureCollection.Drop(ctx)
-
 	// Generate and insert random data
-	for i := 1; i <= 65; i++ {
-		var oilPressureSensors []OilPressureSensors
-		// max number of pressure sensors per cable = max no. of Sections * number of readings per
-		// section * number of phases
-		// e.g. 8 * 2 * 3 = 48
-		for j := 1; j <= 48; j++ {
-			sensor := OilPressureSensors{
-				Section: Section{
-					SensorID:      rand.Int63n(48),
-					SectionNumber: uint8(rand.Intn(8)),
-					// RedSource:     float64(rand.Int63n(30)),
-					// RedTarget:     float64(rand.Int63n(30)),
-					// YellowSource:  float64(rand.Int63n(30)),
-					// YellowTarget:  float64(rand.Int63n(30)),
-					// BlueSource:    float64(rand.Int63n(30)),
-					// BlueTarget:    float64(rand.Int63n(30)),
-				},
-				// Section:  uint8(rand.Intn(8)),
-				// Phase:    phases[randomPhaseIndex],
-				// Endpoint: endpoints[randomEndpointIndex],
-			}
-			oilPressureSensors = append(oilPressureSensors, sensor)
-		}
-
+	for i := 1; i <= TOTAL_CIRCUITS; i++ {
 		randomStatusIndex := rand.Intn(len(status))
 
 		cable := Cables{
-			CircuitID:          uint8(rand.Intn(65)),
-			CircuitName:        randomString(8),
-			CircuitVoltage:     randomString(3),
-			Status:             status[randomStatusIndex],
-			SourceSubstation:   randomString(8),
-			TargetSubstation:   randomString(8),
-			CircuitType:        "OIL-FILLED",
-			FeederNumber:       uint8(rand.Intn(5)),
-			OilPressureSensors: oilPressureSensors,
+			CircuitID:        int(rand.Intn(65)),
+			CircuitName:      randomString(8),
+			CircuitVoltage:   randomString(3),
+			Status:           status[randomStatusIndex],
+			SourceSubstation: randomString(8),
+			TargetSubstation: randomString(8),
+			CircuitType:      "OIL-FILLED",
+			FeederNumber:     int(rand.Intn(5)),
+			NoOfSections:     8,
+		}
+
+		var section Section
+		for j := 1; j <= cable.NoOfSections; j++ {
+			section.SectionNumber = j
+			section.RedSource = Sensor{
+				SensorID: rand.Int63n(48),
+				Value:    float64(rand.Int63n(48)),
+			}
+			section.RedTarget = Sensor{
+				SensorID: rand.Int63n(48),
+				Value:    float64(rand.Int63n(48)),
+			}
+			section.YellowSource = Sensor{
+				SensorID: rand.Int63n(48),
+				Value:    float64(rand.Int63n(48)),
+			}
+			section.YellowTarget = Sensor{
+				SensorID: rand.Int63n(48),
+				Value:    float64(rand.Int63n(48)),
+			}
+			section.BlueSource = Sensor{
+				SensorID: rand.Int63n(48),
+				Value:    float64(rand.Int63n(48)),
+			}
+			section.BlueTarget = Sensor{
+				SensorID: rand.Int63n(48),
+				Value:    float64(rand.Int63n(48)),
+			}
+
+			cable.Sections = append(cable.Sections, section)
 		}
 
 		_, err := cableCollection.InsertOne(ctx, cable)
@@ -133,19 +140,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("filter query data error : %v", err)
 		return
-	}
-
-	sort.SliceStable(cableResult.OilPressureSensors, func(i, j int) bool {
-		return cableResult.OilPressureSensors[i].Section.SectionNumber < cableResult.OilPressureSensors[j].Section.SectionNumber
-	})
-
-	fmt.Println("CircuitID: ", cableResult.CircuitID)
-	fmt.Println("Status: ", cableResult.Status)
-	for i := range cableResult.OilPressureSensors {
-		p := cableResult.OilPressureSensors[i]
-		fmt.Println("Section: ", p.Section)
-		fmt.Println("SensorID: ", p.Section.SensorID)
-
 	}
 }
 

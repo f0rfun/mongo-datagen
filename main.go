@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"os"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -39,6 +41,10 @@ type Cables struct {
 
 func main() {
 	TOTAL_CIRCUITS := 65
+	influxConnString := os.Getenv("INFLUXDB_URI")
+	influxTokenString := os.Getenv("INFLUXDB_TOKEN")
+	influxOrgString := os.Getenv("INFLUX_ORG")
+	influxBucketString := os.Getenv("INFLUX_BUCKET")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
@@ -123,8 +129,44 @@ func main() {
 	err = cableCollection.FindOne(context.TODO(), filter).Decode(&cableResult)
 	if err != nil {
 		log.Fatalf("filter query data error : %v", err)
-		return
+		// return
 	}
+
+	//influxdb
+	influxClient := influxdb2.NewClient(influxConnString, influxTokenString)
+	writeAPI := influxClient.WriteAPIBlocking(influxOrgString, influxBucketString)
+	queryAPI := influxClient.QueryAPI(influxOrgString)
+
+	// Create point using full params constructor
+	p := influxdb2.NewPoint("stat",
+		map[string]string{"unit": "temperature"},
+		map[string]interface{}{"avg": 24.5, "max": 45},
+		time.Now())
+	// Write point immediately
+	writeAPI.WritePoint(context.Background(), p)
+
+	// Get QueryTableResult
+	result, err := queryAPI.Query(context.Background(), `from(bucket:"my-bucket")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "stat")`)
+	if err == nil {
+		// Iterate over query response
+		for result.Next() {
+			// Notice when group key has changed
+			if result.TableChanged() {
+				fmt.Printf("table: %s\n", result.TableMetadata().String())
+			}
+			// Access data
+			fmt.Printf("value: %v\n", result.Record().Value())
+		}
+		// Check for an error
+		if result.Err() != nil {
+			fmt.Printf("query parsing error: %s\n", result.Err().Error())
+		}
+	} else {
+		panic(err)
+	}
+
+	// Ensures background processes finishes
+	influxClient.Close()
 }
 
 func randomString(length int) string {
@@ -136,4 +178,11 @@ func randomString(length int) string {
 		result[i] = charset[r.Intn(len(charset))]
 	}
 	return string(result)
+}
+
+func generateSensorData() map[string]interface{} {
+	return map[string]interface{}{
+		"p1_red_source": rand.Float64() * 100,
+		"p2_red_source": rand.Float64() * 100,
+	}
 }

@@ -9,6 +9,8 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=jhwu
       - MONGO_INITDB_ROOT_PASSWORD=secret
+    networks:
+      - iot_network      
   db-client:
     image: mongo-express
     restart: always
@@ -20,3 +22,16 @@ services:
       - ME_CONFIG_MONGODB_URL=mongodb://jhwu:secret@db:27017/
     depends_on:
       - db
+    networks:
+      - iot_network      
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    networks:
+      - iot_network
+
+networks:
+  iot_network:
+

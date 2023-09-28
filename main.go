@@ -14,18 +14,14 @@ import (
 )
 
 type Sensor struct {
-	SensorID int64
-	Value    float64
+	SensorID       int64
+	Value          float64
+	PhaseLocations string
 }
 
 type Section struct {
 	SectionNumber int
-	RedSource     Sensor
-	RedTarget     Sensor
-	YellowSource  Sensor
-	YellowTarget  Sensor
-	BlueSource    Sensor
-	BlueTarget    Sensor
+	Sensors       []Sensor
 }
 
 type Cables struct {
@@ -76,6 +72,7 @@ func main() {
 	cableCollection.Drop(ctx)
 
 	status := []string{"active", "inactive"}
+	phaseLocations := []string{"RED_SOURCE", "RED_TARGET", "YELLOW_SOURCE", "YELLOW_TARGET", "BLUE_SOURCE", "BLUE_TARGET"}
 
 	// Generate and insert random data
 	for i := 1; i <= TOTAL_CIRCUITS; i++ {
@@ -93,32 +90,19 @@ func main() {
 			NoOfSections:     8,
 		}
 
-		var section Section
 		for j := 1; j <= cable.NoOfSections; j++ {
+			var section Section
 			section.SectionNumber = j
-			section.RedSource = Sensor{
-				SensorID: rand.Int63n(48),
-				Value:    float64(rand.Int63n(48)),
-			}
-			section.RedTarget = Sensor{
-				SensorID: rand.Int63n(48),
-				Value:    float64(rand.Int63n(48)),
-			}
-			section.YellowSource = Sensor{
-				SensorID: rand.Int63n(48),
-				Value:    float64(rand.Int63n(48)),
-			}
-			section.YellowTarget = Sensor{
-				SensorID: rand.Int63n(48),
-				Value:    float64(rand.Int63n(48)),
-			}
-			section.BlueSource = Sensor{
-				SensorID: rand.Int63n(48),
-				Value:    float64(rand.Int63n(48)),
-			}
-			section.BlueTarget = Sensor{
-				SensorID: rand.Int63n(48),
-				Value:    float64(rand.Int63n(48)),
+			var phase Sensor
+
+			for k := 0; k < len(phaseLocations); k++ {
+				phase = Sensor{
+					SensorID:       rand.Int63n(48),
+					PhaseLocations: phaseLocations[k],
+					Value:          float64(rand.Int63n(100)),
+				}
+
+				section.Sensors = append(section.Sensors, phase)
 			}
 
 			cable.Sections = append(cable.Sections, section)

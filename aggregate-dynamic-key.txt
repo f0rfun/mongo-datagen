@@ -1,0 +1,32 @@
+db.collection.aggregate([
+  {
+    $match: {
+      circuitid: 44
+    }
+  },
+  {
+    $project: {
+      circuitid: "$circuitid",
+      sensorids: {
+        $reduce: {
+          input: "$sections",
+          initialValue: [],
+          in: {
+            $concatArrays: [
+              "$$value",
+              [
+                "$$this.redsource.sensorid",
+                "$$this.redtarget.sensorid",
+                "$$this.yellowsource.sensorid",
+                "$$this.yellowtarget.sensorid",
+                "$$this.bluesource.sensorid",
+                "$$this.bluetarget.sensorid"
+              ]
+            ]
+          }
+        }
+      },
+      _id: 0
+    }
+  }
+])

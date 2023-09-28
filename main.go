@@ -9,6 +9,7 @@ import (
 	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -41,10 +42,11 @@ type Cables struct {
 
 func main() {
 	TOTAL_CIRCUITS := 65
-	influxConnString := os.Getenv("INFLUXDB_URI")
+	influxConnString := "http://localhost:8086"
+	// influxTokenString := "Vyw31lcDtuBv66XPZ7fBL-m49ruPioGszCMZ8Yrbz2b3SsLn9DvBU7zaU9KHs4ooWdIbhUs6gWKoPL-CZPMAIg=="
+	influxOrgString := "example-org"
+	influxBucketString := "example-bucket"
 	influxTokenString := os.Getenv("INFLUXDB_TOKEN")
-	influxOrgString := os.Getenv("INFLUX_ORG")
-	influxBucketString := os.Getenv("INFLUX_BUCKET")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
@@ -137,16 +139,23 @@ func main() {
 	writeAPI := influxClient.WriteAPIBlocking(influxOrgString, influxBucketString)
 	queryAPI := influxClient.QueryAPI(influxOrgString)
 
-	// Create point using full params constructor
-	p := influxdb2.NewPoint("stat",
-		map[string]string{"unit": "temperature"},
-		map[string]interface{}{"avg": 24.5, "max": 45},
-		time.Now())
-	// Write point immediately
-	writeAPI.WritePoint(context.Background(), p)
+	for value := 0; value < 5; value++ {
+		tags := map[string]string{
+			"sensor": "1",
+		}
+		fields := map[string]interface{}{
+			"pressure": value,
+		}
+		point := write.NewPoint("sensor_data", tags, fields, time.Now())
+		time.Sleep(1 * time.Second) // separate points by 1 second
+
+		if err := writeAPI.WritePoint(context.Background(), point); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	// Get QueryTableResult
-	result, err := queryAPI.Query(context.Background(), `from(bucket:"my-bucket")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "stat")`)
+	result, err := queryAPI.Query(context.Background(), `from(bucket:"example-bucket")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "sensor_data")`)
 	if err == nil {
 		// Iterate over query response
 		for result.Next() {

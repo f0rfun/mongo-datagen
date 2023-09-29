@@ -44,8 +44,8 @@ func main() {
 	TOTAL_CIRCUITS := 65
 	influxConnString := "http://localhost:8086"
 	// influxTokenString := "Vyw31lcDtuBv66XPZ7fBL-m49ruPioGszCMZ8Yrbz2b3SsLn9DvBU7zaU9KHs4ooWdIbhUs6gWKoPL-CZPMAIg=="
-	influxOrgString := "example-org"
-	influxBucketString := "example-bucket"
+	influxOrgString := "sample-org"
+	influxBucketString := "sample-bucket"
 	influxTokenString := os.Getenv("INFLUXDB_TOKEN")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -139,12 +139,41 @@ func main() {
 	writeAPI := influxClient.WriteAPIBlocking(influxOrgString, influxBucketString)
 	queryAPI := influxClient.QueryAPI(influxOrgString)
 
-	for value := 0; value < 5; value++ {
-		tags := map[string]string{
-			"sensor": "1",
-		}
+	// arbitrary tags for sensors
+	var tagsMap = map[int]map[string]string{
+		0: {
+			"type":    "pressure",
+			"cableNo": "1",
+			"phase":   "red",
+		},
+		1: {
+			"type":    "pressure",
+			"cableNo": "3",
+			"phase":   "red",
+		},
+		2: {
+			"type":    "pressure",
+			"cableNo": "1",
+			"phase":   "blue",
+		},
+		3: {
+			"type":    "pressure",
+			"cableNo": "2",
+			"phase":   "red",
+		},
+		4: {
+			"type":    "pressure",
+			"cableNo": "5",
+			"phase":   "yellow",
+		},
+	}
+
+	for sensorID := 0; sensorID < 5; sensorID++ {
+		tags := tagsMap[sensorID]
 		fields := map[string]interface{}{
-			"pressure": value,
+			"value":     float64(rand.Int63n(110)),
+			"alertLow":  float64(rand.Int63n(100)),
+			"alertHigh": float64(rand.Int63n(100)),
 		}
 		point := write.NewPoint("sensor_data", tags, fields, time.Now())
 		time.Sleep(1 * time.Second) // separate points by 1 second
@@ -154,8 +183,19 @@ func main() {
 		}
 	}
 
+	// Can adjust based on sensorID
+	params := tagsMap[0]
+
+	query := fmt.Sprintf(`from(bucket:"sample-bucket")
+		|> range(start: -1h) 
+		|> filter(fn: (r) => r.type == "%s")
+		|> filter(fn: (r) => r.cableNo == "%s")
+		|> filter(fn: (r) => r.phase == "%s")
+		|> filter(fn: (r) => r._field == "value")`,
+		params["type"], params["cableNo"], params["phase"])
+
 	// Get QueryTableResult
-	result, err := queryAPI.Query(context.Background(), `from(bucket:"example-bucket")|> range(start: -1h) |> filter(fn: (r) => r._measurement == "sensor_data")`)
+	result, err := queryAPI.QueryWithParams(context.Background(), query, params)
 	if err == nil {
 		// Iterate over query response
 		for result.Next() {
@@ -187,11 +227,4 @@ func randomString(length int) string {
 		result[i] = charset[r.Intn(len(charset))]
 	}
 	return string(result)
-}
-
-func generateSensorData() map[string]interface{} {
-	return map[string]interface{}{
-		"p1_red_source": rand.Float64() * 100,
-		"p2_red_source": rand.Float64() * 100,
-	}
 }

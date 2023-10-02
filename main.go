@@ -13,17 +13,17 @@ type Data struct {
 }
 
 type PressurePoint struct {
-	ID          string `json: "id"`
-	Description string `json: "description"`
-	// MeasuredAt   time.Time `json: "measuredAt"`
-	// SentAt       time.Time `json: "sentAt"`
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	// MeasuredAt   time.Time `json:"measuredAt"`
+	// SentAt       time.Time `json:"sentAt"`
 	Value        float64 `json:"value,string"`
-	AlertLow     float64 `json: "alertLow,string"`
-	CriticalLow  float64 `json: "criticalLow,string"`
-	OorLow       float64 `json: "oorLow,string"`
-	AlertHigh    float64 `json: "alertHigh,string"`
-	CriticalHigh float64 `json: "criticalHigh,string"`
-	OorHigh      float64 `json: "oorHigh,string"`
+	AlertLow     float64 `json:"alertLow,string"`
+	CriticalLow  float64 `json:"criticalLow,string"`
+	OorLow       float64 `json:"oorLow,string"`
+	AlertHigh    float64 `json:"alertHigh,string"`
+	CriticalHigh float64 `json:"criticalHigh,string"`
+	OorHigh      float64 `json:"oorHigh,string"`
 }
 
 func main() {
@@ -41,12 +41,32 @@ func main() {
 
 	switch data.Type {
 	case "pressure":
-		points := make([]PressurePoint, 10)
+		points := make([]PressurePoint, 1)
 		err = json.Unmarshal(data.Data, &points)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(points[0].Value)
+		point := fmt.Sprintf(`
+		id: %s
+		description: %s
+		value: %f
+		alertLow: %f
+		criticalLow: %f
+		oorLow: %f
+		alertHigh: %f
+		criticalHigh: %f
+		oorHigh: %f
+		`, points[0].ID,
+			points[0].Description,
+			points[0].Value,
+			points[0].AlertLow,
+			points[0].CriticalLow,
+			points[0].OorLow,
+			points[0].AlertHigh,
+			points[0].CriticalHigh,
+			points[0].OorHigh,
+		)
+		fmt.Println(point)
 		// temperature etc
 	}
 }

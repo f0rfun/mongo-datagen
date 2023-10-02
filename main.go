@@ -13,10 +13,10 @@ type Data struct {
 }
 
 type PressurePoint struct {
-	ID          string `json:"id"`
-	Description string `json:"description"`
-	// MeasuredAt   time.Time `json:"measuredAt"`
-	// SentAt       time.Time `json:"sentAt"`
+	ID           string  `json:"id"`
+	Description  string  `json:"description"`
+	MeasuredAt   string  `json:"measuredAt"`
+	SentAt       string  `json:"sentAt"`
 	Value        float64 `json:"value,string"`
 	AlertLow     float64 `json:"alertLow,string"`
 	CriticalLow  float64 `json:"criticalLow,string"`
@@ -49,6 +49,8 @@ func main() {
 		point := fmt.Sprintf(`
 		id: %s
 		description: %s
+		measuredAt: %s
+		sentAt: %s
 		value: %f
 		alertLow: %f
 		criticalLow: %f
@@ -56,8 +58,11 @@ func main() {
 		alertHigh: %f
 		criticalHigh: %f
 		oorHigh: %f
-		`, points[0].ID,
+		`,
+			points[0].ID,
 			points[0].Description,
+			points[0].MeasuredAt,
+			points[0].SentAt,
 			points[0].Value,
 			points[0].AlertLow,
 			points[0].CriticalLow,

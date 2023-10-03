@@ -183,36 +183,36 @@ func main() {
 		}
 	}
 
-	// Can adjust based on sensorID
-	params := tagsMap[0]
+	// // Can adjust based on sensorID
+	// params := tagsMap[0]
 
-	query := fmt.Sprintf(`from(bucket:"sample-bucket")
-		|> range(start: -1h) 
-		|> filter(fn: (r) => r.type == "%s")
-		|> filter(fn: (r) => r.cableNo == "%s")
-		|> filter(fn: (r) => r.phase == "%s")
-		|> filter(fn: (r) => r._field == "value")`,
-		params["type"], params["cableNo"], params["phase"])
+	// query := fmt.Sprintf(`from(bucket:"sample-bucket")
+	// 	|> range(start: -1h)
+	// 	|> filter(fn: (r) => r.type == "%s")
+	// 	|> filter(fn: (r) => r.cableNo == "%s")
+	// 	|> filter(fn: (r) => r.phase == "%s")
+	// 	|> filter(fn: (r) => r._field == "value")`,
+	// 	params["type"], params["cableNo"], params["phase"])
 
-	// Get QueryTableResult
-	result, err := queryAPI.QueryWithParams(context.Background(), query, params)
-	if err == nil {
-		// Iterate over query response
-		for result.Next() {
-			// Notice when group key has changed
-			if result.TableChanged() {
-				fmt.Printf("table: %s\n", result.TableMetadata().String())
-			}
-			// Access data
-			fmt.Printf("value: %v\n", result.Record().Value())
-		}
-		// Check for an error
-		if result.Err() != nil {
-			fmt.Printf("query parsing error: %s\n", result.Err().Error())
-		}
-	} else {
-		panic(err)
-	}
+	// // Get QueryTableResult
+	// result, err := queryAPI.QueryWithParams(context.Background(), query, params)
+	// if err == nil {
+	// 	// Iterate over query response
+	// 	for result.Next() {
+	// 		// Notice when group key has changed
+	// 		if result.TableChanged() {
+	// 			fmt.Printf("table: %s\n", result.TableMetadata().String())
+	// 		}
+	// 		// Access data
+	// 		fmt.Printf("value: %v\n", result.Record().Value())
+	// 	}
+	// 	// Check for an error
+	// 	if result.Err() != nil {
+	// 		fmt.Printf("query parsing error: %s\n", result.Err().Error())
+	// 	}
+	// } else {
+	// 	panic(err)
+	// }
 
 	// Ensures background processes finishes
 	influxClient.Close()

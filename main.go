@@ -41,12 +41,13 @@ type Cables struct {
 }
 
 type Data struct {
-	Type    string
-	RawData json.RawMessage `json:"data"`
+	Type               string
+	RawPressureData    json.RawMessage `json:"pressure"`
+	RawTemperatureData json.RawMessage `json:"temperature"`
 }
 
 type PressurePoint struct {
-	RawSensorID  int     `json:"id"`
+	RawSensorID  int     `json:"sensorID"`
 	Description  string  `json:"description"`
 	MeasuredAt   string  `json:"measuredAt"`
 	SentAt       string  `json:"sentAt"`
@@ -65,10 +66,9 @@ func main() {
 
 	TOTAL_CIRCUITS := 65
 	influxConnString := "http://localhost:8086"
-	// influxTokenString := "Vyw31lcDtuBv66XPZ7fBL-m49ruPioGszCMZ8Yrbz2b3SsLn9DvBU7zaU9KHs4ooWdIbhUs6gWKoPL-CZPMAIg=="
 	influxOrgString := "sample-org"
 	influxBucketString := "sample-bucket"
-	influxTokenString := os.Getenv("INFLUXDB_TOKEN")
+	influxTokenString := os.Getenv("INFLUXDB_TOKEN") //exported in command line as `export INFLUXDB_TOKEN=jmFgnVqZjozRkDki3ToANuNGaeTKdpyvSis4cyK3Bs6wlqwk-L_NMJLJHcaqNn221zY26Z-gEMwADBgoeBEq0g==`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
@@ -105,7 +105,7 @@ func main() {
 	phaseLocations := []string{"RED_SOURCE", "RED_TARGET", "YELLOW_SOURCE", "YELLOW_TARGET", "BLUE_SOURCE", "BLUE_TARGET"}
 	var currsensorid int
 
-	// Generate and insert random data
+	// Generate and insert random asset data
 	for i := 1; i <= TOTAL_CIRCUITS; i++ {
 		randomStatusIndex := rand.Intn(len(status))
 
@@ -157,22 +157,22 @@ func main() {
 
 	//	RETRIEVE RAW SENSOR DATA
 
-	datajson, err := os.ReadFile("testdata/cop_format.json")
+	testData, err := os.ReadFile("testdata/cop_format.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var data Data
-	err = json.Unmarshal(datajson, &data)
+	err = json.Unmarshal(testData, &data)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	SensorDataMap := make(map[int]PressurePoint)
 	switch data.Type {
-	case "pressure":
+	case "cable":
 		var rawDataArray []PressurePoint
-		err = json.Unmarshal(data.RawData, &rawDataArray)
+		err = json.Unmarshal(data.RawPressureData, &rawDataArray)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -206,6 +206,7 @@ func main() {
 				if ok {
 					tags := map[string]string{
 						"cableID":        fmt.Sprint(cable.CircuitID),
+						"status":         cable.Status,
 						"section":        fmt.Sprint(section.SectionNumber),
 						"phaseLocations": sensor.PhaseLocations,
 					}

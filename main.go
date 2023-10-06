@@ -16,10 +16,33 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
+type AssetStatus string
+
+const (
+	Active   AssetStatus = "ACTIVE"
+	Inactive AssetStatus = "INACTIVE"
+)
+
+type Phases string
+
+const (
+	Red    Phases = "RED"
+	Yellow Phases = "YELLOW"
+	Blue   Phases = "BLUE"
+)
+
+type Locations string
+
+const (
+	Source Locations = "SOURCE"
+	Target Locations = "TARGET"
+)
+
 type Sensor struct {
-	SensorID       int
-	Value          float64
-	PhaseLocations string
+	SensorID        int
+	Phase           Phases
+	Location        Locations
+	AssetMetrictype string
 }
 
 type Section struct {
@@ -27,21 +50,34 @@ type Section struct {
 	Sensors       []Sensor
 }
 
+type Substation struct {
+	AdwhID int
+	Name   string
+}
+
 type Cables struct {
 	CircuitID        int
 	CircuitName      string
 	CircuitVoltage   string
-	Status           string
-	SourceSubstation string
-	TargetSubstation string
+	Status           AssetStatus
+	SourceSubstation Substation
+	TargetSubstation Substation
 	CircuitType      string
 	FeederNumber     int
 	NoOfSections     int
 	Sections         []Section
 }
 
+type AssetType string
+
+const (
+	Cable AssetType = "CABLE"
+	RTU   AssetType = "RTU"
+	Gauge AssetType = "GAUGE"
+)
+
 type Data struct {
-	Type               string
+	AssetType          AssetType       `json:"type"`
 	RawPressureData    json.RawMessage `json:"pressure"`
 	RawTemperatureData json.RawMessage `json:"temperature"`
 }
@@ -101,21 +137,29 @@ func main() {
 	cableCollection := database.Collection("cables")
 	cableCollection.Drop(ctx)
 
-	status := []string{"active", "inactive"}
+	status := []AssetStatus{Active, Inactive}
 	phaseLocations := []string{"RED_SOURCE", "RED_TARGET", "YELLOW_SOURCE", "YELLOW_TARGET", "BLUE_SOURCE", "BLUE_TARGET"}
 	var currsensorid int
 
 	// Generate and insert random asset data
 	for i := 1; i <= TOTAL_CIRCUITS; i++ {
 		randomStatusIndex := rand.Intn(len(status))
+		ss := Substation{
+			AdwhID: int(rand.Intn(65)),
+			Name:   randomString(3),
+		}
+		ts := Substation{
+			AdwhID: int(rand.Intn(65)),
+			Name:   randomString(3),
+		}
 
 		cable := Cables{
 			CircuitID:        int(rand.Intn(65)),
 			CircuitName:      randomString(8),
 			CircuitVoltage:   randomString(3),
 			Status:           status[randomStatusIndex],
-			SourceSubstation: randomString(8),
-			TargetSubstation: randomString(8),
+			SourceSubstation: ss,
+			TargetSubstation: ts,
 			CircuitType:      "OIL-FILLED",
 			FeederNumber:     int(rand.Intn(5)),
 			NoOfSections:     8,
@@ -129,13 +173,35 @@ func main() {
 			for k := 0; k < len(phaseLocations); k++ {
 				currsensorid++
 				phase = Sensor{
-					SensorID:       currsensorid,
-					PhaseLocations: phaseLocations[k],
-					Value:          float64(rand.Int63n(100)),
+					SensorID:        currsensorid,
+					Phase:           "RED",
+					Location:        "SOURCE",
+					AssetMetrictype: "CABLE_PRESSURE",
 				}
 
 				section.Sensors = append(section.Sensors, phase)
 			}
+
+			phase = Sensor{
+				SensorID:        currsensorid,
+				AssetMetrictype: "RTU_TEMPERATURE",
+			}
+
+			section.Sensors = append(section.Sensors, phase)
+
+			phase = Sensor{
+				SensorID:        currsensorid,
+				AssetMetrictype: "RTU_VOLTAGE",
+			}
+
+			section.Sensors = append(section.Sensors, phase)
+
+			phase = Sensor{
+				SensorID:        currsensorid,
+				AssetMetrictype: "GAUGE_VOLTAGE",
+			}
+
+			section.Sensors = append(section.Sensors, phase)
 
 			cable.Sections = append(cable.Sections, section)
 		}
@@ -169,8 +235,9 @@ func main() {
 	}
 
 	SensorDataMap := make(map[int]PressurePoint)
-	switch data.Type {
-	case "cable":
+	switch data.AssetType {
+	case Cable:
+		fmt.Println("=========== Cable sensor data received ===========")
 		var rawDataArray []PressurePoint
 		err = json.Unmarshal(data.RawPressureData, &rawDataArray)
 		if err != nil {
@@ -205,10 +272,11 @@ func main() {
 				point, ok := SensorDataMap[sensor.SensorID]
 				if ok {
 					tags := map[string]string{
-						"cableID":        fmt.Sprint(cable.CircuitID),
-						"status":         cable.Status,
-						"section":        fmt.Sprint(section.SectionNumber),
-						"phaseLocations": sensor.PhaseLocations,
+						"cableID":  fmt.Sprint(cable.CircuitID),
+						"status":   string(cable.Status),
+						"section":  fmt.Sprint(section.SectionNumber),
+						"phase":    "RED",
+						"location": "SOURCE",
 					}
 					fields := map[string]interface{}{
 						"value":     point.Value,
@@ -244,7 +312,7 @@ func main() {
 	// 	// // Can adjust based on sensorID
 	// 	// params := tagsMap[0]
 
-	// 	// query := fmt.Sprintf(`from(bucket:"sample-bucket")
+	// 	// query := fmt.Sprintf(`from(bucket:"example-bucket")
 	// 	// 	|> range(start: -1h)
 	// 	// 	|> filter(fn: (r) => r.type == "%s")
 	// 	// 	|> filter(fn: (r) => r.cableNo == "%s")
